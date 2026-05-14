@@ -358,12 +358,15 @@
 
   // On page load, check existing session
   (async () => {
-    const r = await fetch('/api/status');
-    const data = await r.json();
-    if (data.logged_in) {
-      showDashboard(data.name, data.account);
-    } else {
-      // Pre-fill from env defaults if fields are empty
+    try {
+      const r = await fetch('/api/status');
+      const data = await r.json();
+      if (data.logged_in) {
+        showDashboard(data.name, data.account);
+      } else {
+        showLogin();
+      }
+    } catch (e) {
       showLogin();
     }
   })();

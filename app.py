@@ -190,4 +190,15 @@ def market():
 
 
 if __name__ == "__main__":
+    if not os.environ.get("WERKZEUG_RUN_MAIN"):
+        import threading, webbrowser, socket, time
+        def _open_browser():
+            for _ in range(30):
+                try:
+                    socket.create_connection(("127.0.0.1", 8080), timeout=0.3).close()
+                    break
+                except OSError:
+                    time.sleep(0.3)
+            webbrowser.open("http://127.0.0.1:8080")
+        threading.Thread(target=_open_browser, daemon=True).start()
     app.run(debug=True, port=8080)

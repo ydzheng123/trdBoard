@@ -27,6 +27,13 @@ python app.py          # start the dashboard at http://127.0.0.1:8080
 python market_data.py  # run standalone script
 ```
 
+Shell aliases (defined in `~/.zshrc`, scripts in `~/.local/bin`):
+```bash
+app   # kill any process on :8080, activate .venv, and start Flask server
+ghd   # open GitHub Desktop
+va    # activate .venv (shorthand for `source .venv/bin/activate`)
+```
+
 Port 5000 is occupied by macOS AirPlay; the app runs on **8080**.
 
 ## Web App Architecture (`app.py`)
