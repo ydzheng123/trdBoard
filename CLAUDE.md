@@ -125,6 +125,12 @@ Pass `MarketType.IntradayOdd` as `market_type` to get intraday odd lot data.
 - **`OrderType`**: `Stock`, `Margin`, `Short`, `DayTrade`, `SBL`
 - **`BSAction`**: `Buy`, `Sell`
 
+## 個人知識庫（LLM Wiki）
+
+開發紀錄與專案脈絡存於 `~/llm_wiki/wiki/`。
+啟動新 session 時，請先讀 `~/llm_wiki/wiki/index.md`，
+再依需要讀取相關頁面（如 `project-trade_board.md`、`concept-fubon-neo-sdk.md`）。
+
 ## Logs
 
 Runtime logs are written to `./log/` with date suffixes (`program.log.YYYYMMDD`, `client.log.YYYYMMDD`, `notify.log.YYYYMMDD`). Logs are base64-encoded internally by the SDK.
