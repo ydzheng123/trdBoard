@@ -128,8 +128,16 @@ Pass `MarketType.IntradayOdd` as `market_type` to get intraday odd lot data.
 ## 個人知識庫（LLM Wiki）
 
 開發紀錄與專案脈絡存於 `~/llm_wiki/wiki/`。
-啟動新 session 時，請先讀 `~/llm_wiki/wiki/index.md`，
-再依需要讀取相關頁面（如 `project-trade_board.md`、`concept-fubon-neo-sdk.md`）。
+
+### Session 啟動時
+1. 讀 `~/llm_wiki/wiki/index.md` 取得所有專案背景，再依需要讀取相關頁面（如 `project-trdBoard.md`、`concept-fubon-neo-sdk.md`）
+2. 檢查 `~/llm_wiki/raw/projects/` 的檔案，若有任何檔案比 `~/llm_wiki/wiki/log.md` 最後一筆紀錄更新，主動告知使用者有未消化的對話紀錄
+
+### Exit 流程（使用者說要離開時，必須完整執行）
+1. 執行 `wiki trdBoard` 匯出對話紀錄
+2. 讀取匯出的 markdown，ingest 到對應 wiki 頁面，更新 `index.md` 與 `log.md`
+3. 在 `~/llm_wiki/` 執行 `git add -A && git commit -m "[YYYY-MM-DD] auto-ingest | trdBoard"`
+4. 輸出 `→ /exit` 告知使用者可以離開
 
 ## Logs
 
