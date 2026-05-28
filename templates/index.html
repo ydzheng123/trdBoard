@@ -41,14 +41,27 @@
     .num { font-variant-numeric: tabular-nums; }
     .sym-input { background: transparent; border: none; border-bottom: 1px dashed #475569; color: #94a3b8; font-family: monospace; font-size: 0.85rem; width: 5em; outline: none; padding: 2px 0; text-transform: uppercase; }
     .sym-input:focus { border-bottom-color: #3b82f6; color: #e2e8f0; }
+    .btn-trade { background: #1e293b; border: 1px solid #475569; color: #94a3b8; border-radius: 6px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap; }
+    .btn-trade:hover { background: #334155; color: #e2e8f0; }
+    /* Order modal */
+    .om-label { color: #94a3b8; font-size: 0.85rem; width: 2.5rem; flex-shrink: 0; }
+    .tab-group { display: flex; background: #0f172a; border-radius: 8px; padding: 3px; gap: 2px; }
+    .tab-btn { flex: 1; padding: 7px 4px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; border: none; background: transparent; color: #64748b; transition: all 0.15s; white-space: nowrap; }
+    .tab-btn.active { background: #334155; color: #e2e8f0; font-weight: 600; }
+    .btn-buy  { flex: 1; background: #ef4444; color: white; font-size: 1rem; font-weight: 700; border-radius: 8px; padding: 13px; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn-sell { flex: 1; background: #22c55e; color: #0f172a; font-size: 1rem; font-weight: 700; border-radius: 8px; padding: 13px; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .om-numinput { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 8px; padding: 11px 14px; font-size: 1.05rem; flex: 1; text-align: center; outline: none; min-width: 0; }
+    .om-pm { background: #334155; color: #e2e8f0; border: none; border-radius: 8px; padding: 11px 20px; font-size: 1.2rem; cursor: pointer; transition: background 0.15s; flex-shrink: 0; }
+    .om-pm:hover { background: #475569; }
   </style>
 </head>
 <body class="min-h-screen">
 
-<!-- Login Screen -->
+<!-- S1：登入畫面 -->
 <div id="login-screen" class="hidden min-h-screen flex items-center justify-center p-4">
   <div class="card w-full max-w-sm p-8">
     <div class="mb-8 text-center">
+      <div class="text-slate-500 text-xs mb-1">S1 登入畫面</div>
       <div class="text-slate-400 text-sm">請輸入登入密碼</div>
     </div>
     <div>
@@ -60,11 +73,12 @@
   </div>
 </div>
 
-<!-- Dashboard -->
+<!-- S2：行情看板 -->
 <div id="dashboard" class="hidden">
   <!-- Header -->
   <header class="border-b border-slate-700 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-2 text-sm text-slate-400">
+      <span class="text-slate-600 text-xs">S2 行情看板</span>
       <span class="dot dot-live"></span>
       <span id="refresh-time">---</span>
     </div>
@@ -89,11 +103,10 @@
             <th>漲跌</th>
             <th>成交量</th>
             <th>開盤</th>
-            <th>委買</th>
-            <th>委賣</th>
             <th>零股成交價</th>
             <th>零股漲跌</th>
             <th>零股成交量</th>
+            <th>零股</th>
           </tr>
         </thead>
         <tbody>
@@ -109,7 +122,6 @@
             <td class="text-slate-600">—</td>
             <td class="text-slate-600">—</td>
             <td class="text-slate-600">—</td>
-            <td class="text-slate-600">—</td>
           </tr>
           <!-- Stock row 0 -->
           <tr>
@@ -119,11 +131,10 @@
             <td class="num" id="r0-change">---</td>
             <td class="num text-slate-300" id="r0-vol">---</td>
             <td class="num" id="r0-open">---</td>
-            <td class="num" id="r0-bid">---</td>
-            <td class="num" id="r0-ask">---</td>
             <td class="num" id="r0-odd-price">---</td>
             <td class="num" id="r0-odd-change">---</td>
             <td class="num text-slate-300" id="r0-odd-vol">---</td>
+            <td><button class="btn-trade" onclick="oddTrade(0)">下單</button></td>
           </tr>
           <!-- Stock row 1 -->
           <tr>
@@ -133,27 +144,308 @@
             <td class="num" id="r1-change">---</td>
             <td class="num text-slate-300" id="r1-vol">---</td>
             <td class="num" id="r1-open">---</td>
-            <td class="num" id="r1-bid">---</td>
-            <td class="num" id="r1-ask">---</td>
             <td class="num" id="r1-odd-price">---</td>
             <td class="num" id="r1-odd-change">---</td>
             <td class="num text-slate-300" id="r1-odd-vol">---</td>
+            <td><button class="btn-trade" onclick="oddTrade(1)">下單</button></td>
           </tr>
           <!-- Stock rows 2–6 (empty) -->
-          <tr><td><input class="sym-input" id="r2-symbol" maxlength="6" /></td><td id="r2-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r2-price">---</td><td class="num text-slate-600" id="r2-change">---</td><td class="num text-slate-600" id="r2-vol">---</td><td class="num text-slate-600" id="r2-open">---</td><td class="num text-slate-600" id="r2-bid">---</td><td class="num text-slate-600" id="r2-ask">---</td><td class="num text-slate-600" id="r2-odd-price">---</td><td class="num text-slate-600" id="r2-odd-change">---</td><td class="num text-slate-600" id="r2-odd-vol">---</td></tr>
-          <tr><td><input class="sym-input" id="r3-symbol" maxlength="6" /></td><td id="r3-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r3-price">---</td><td class="num text-slate-600" id="r3-change">---</td><td class="num text-slate-600" id="r3-vol">---</td><td class="num text-slate-600" id="r3-open">---</td><td class="num text-slate-600" id="r3-bid">---</td><td class="num text-slate-600" id="r3-ask">---</td><td class="num text-slate-600" id="r3-odd-price">---</td><td class="num text-slate-600" id="r3-odd-change">---</td><td class="num text-slate-600" id="r3-odd-vol">---</td></tr>
-          <tr><td><input class="sym-input" id="r4-symbol" maxlength="6" /></td><td id="r4-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r4-price">---</td><td class="num text-slate-600" id="r4-change">---</td><td class="num text-slate-600" id="r4-vol">---</td><td class="num text-slate-600" id="r4-open">---</td><td class="num text-slate-600" id="r4-bid">---</td><td class="num text-slate-600" id="r4-ask">---</td><td class="num text-slate-600" id="r4-odd-price">---</td><td class="num text-slate-600" id="r4-odd-change">---</td><td class="num text-slate-600" id="r4-odd-vol">---</td></tr>
-          <tr><td><input class="sym-input" id="r5-symbol" maxlength="6" /></td><td id="r5-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r5-price">---</td><td class="num text-slate-600" id="r5-change">---</td><td class="num text-slate-600" id="r5-vol">---</td><td class="num text-slate-600" id="r5-open">---</td><td class="num text-slate-600" id="r5-bid">---</td><td class="num text-slate-600" id="r5-ask">---</td><td class="num text-slate-600" id="r5-odd-price">---</td><td class="num text-slate-600" id="r5-odd-change">---</td><td class="num text-slate-600" id="r5-odd-vol">---</td></tr>
-          <tr><td><input class="sym-input" id="r6-symbol" maxlength="6" /></td><td id="r6-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r6-price">---</td><td class="num text-slate-600" id="r6-change">---</td><td class="num text-slate-600" id="r6-vol">---</td><td class="num text-slate-600" id="r6-open">---</td><td class="num text-slate-600" id="r6-bid">---</td><td class="num text-slate-600" id="r6-ask">---</td><td class="num text-slate-600" id="r6-odd-price">---</td><td class="num text-slate-600" id="r6-odd-change">---</td><td class="num text-slate-600" id="r6-odd-vol">---</td></tr>
+          <tr><td><input class="sym-input" id="r2-symbol" maxlength="6" /></td><td id="r2-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r2-price">---</td><td class="num text-slate-600" id="r2-change">---</td><td class="num text-slate-600" id="r2-vol">---</td><td class="num text-slate-600" id="r2-open">---</td><td class="num text-slate-600" id="r2-odd-price">---</td><td class="num text-slate-600" id="r2-odd-change">---</td><td class="num text-slate-600" id="r2-odd-vol">---</td><td><button class="btn-trade" onclick="oddTrade(2)">下單</button></td></tr>
+          <tr><td><input class="sym-input" id="r3-symbol" maxlength="6" /></td><td id="r3-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r3-price">---</td><td class="num text-slate-600" id="r3-change">---</td><td class="num text-slate-600" id="r3-vol">---</td><td class="num text-slate-600" id="r3-open">---</td><td class="num text-slate-600" id="r3-odd-price">---</td><td class="num text-slate-600" id="r3-odd-change">---</td><td class="num text-slate-600" id="r3-odd-vol">---</td><td><button class="btn-trade" onclick="oddTrade(3)">下單</button></td></tr>
+          <tr><td><input class="sym-input" id="r4-symbol" maxlength="6" /></td><td id="r4-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r4-price">---</td><td class="num text-slate-600" id="r4-change">---</td><td class="num text-slate-600" id="r4-vol">---</td><td class="num text-slate-600" id="r4-open">---</td><td class="num text-slate-600" id="r4-odd-price">---</td><td class="num text-slate-600" id="r4-odd-change">---</td><td class="num text-slate-600" id="r4-odd-vol">---</td><td><button class="btn-trade" onclick="oddTrade(4)">下單</button></td></tr>
+          <tr><td><input class="sym-input" id="r5-symbol" maxlength="6" /></td><td id="r5-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r5-price">---</td><td class="num text-slate-600" id="r5-change">---</td><td class="num text-slate-600" id="r5-vol">---</td><td class="num text-slate-600" id="r5-open">---</td><td class="num text-slate-600" id="r5-odd-price">---</td><td class="num text-slate-600" id="r5-odd-change">---</td><td class="num text-slate-600" id="r5-odd-vol">---</td><td><button class="btn-trade" onclick="oddTrade(5)">下單</button></td></tr>
+          <tr><td><input class="sym-input" id="r6-symbol" maxlength="6" /></td><td id="r6-name" class="text-slate-600">---</td><td class="num text-slate-600" id="r6-price">---</td><td class="num text-slate-600" id="r6-change">---</td><td class="num text-slate-600" id="r6-vol">---</td><td class="num text-slate-600" id="r6-open">---</td><td class="num text-slate-600" id="r6-odd-price">---</td><td class="num text-slate-600" id="r6-odd-change">---</td><td class="num text-slate-600" id="r6-odd-vol">---</td><td><button class="btn-trade" onclick="oddTrade(6)">下單</button></td></tr>
         </tbody>
       </table>
     </div>
   </main>
 </div>
 
+<!-- S3：下單面板 -->
+<div id="order-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center"
+     style="background:rgba(0,0,0,0.6)" onclick="if(event.target===this)closeOrderModal()">
+  <div class="w-full max-w-lg" style="background:#0a0a0a;border-radius:16px 16px 0 0;max-height:93vh;overflow-y:auto;position:relative;border:2px solid #4b5563;border-bottom:none">
+
+    <!-- 代號 + 關閉 -->
+    <div style="background:#111111;padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a2a2a">
+      <span style="font-size:0.7rem;color:#4b5563;flex-shrink:0">S3 下單面板</span>
+      <input id="om-symbol" maxlength="6"
+             style="flex:1;border:none;border-bottom:2px solid #4b5563;background:transparent;font-size:1.05rem;font-family:monospace;padding:4px 6px;outline:none;text-transform:uppercase;color:#f0f0f0;min-width:0" />
+      <button onclick="closeOrderModal()"
+              style="border:none;background:#2a2a2a;color:#9ca3af;border-radius:8px;width:34px;height:34px;font-size:1.1rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+
+    <!-- 名稱 + 現價 -->
+    <div style="background:#111111;padding:10px 14px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a2a">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="background:#5b21b6;color:white;border-radius:4px;padding:2px 7px;font-size:0.75rem;font-weight:700;flex-shrink:0">市</span>
+        <span id="om-name" style="font-size:1.25rem;font-weight:700;color:#f0f0f0">---</span>
+      </div>
+      <div style="text-align:right">
+        <div id="om-hdr-price" style="font-size:1.8rem;font-weight:700;line-height:1.1;color:#ef4444">---</div>
+        <div id="om-hdr-change" style="font-size:0.85rem;color:#ef4444">---</div>
+      </div>
+    </div>
+
+    <!-- 五檔委託 -->
+    <div style="background:#111111;padding:8px 14px 2px;border-bottom:1px solid #2a2a2a">
+      <div id="om-book" style="font-size:0.82rem;font-variant-numeric:tabular-nums"></div>
+      <div style="text-align:center;color:#4b5563;padding:4px 0 4px;font-size:0.9rem;cursor:pointer">∨</div>
+    </div>
+
+    <!-- 最近成交 -->
+    <div id="om-trades" style="background:#111111;padding:4px 14px 10px;border-bottom:1px solid #2a2a2a;font-size:0.82rem;font-variant-numeric:tabular-nums"></div>
+
+    <!-- 控制區 -->
+    <div style="background:#0a0a0a;padding:12px 14px 0">
+
+      <!-- 價格輸入 -->
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="display:flex;align-items:center;flex:1;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:10px;overflow:hidden;min-width:0">
+          <button onclick="omAdjustPrice(-1)"
+                  style="padding:12px 14px;border:none;background:transparent;font-size:1.2rem;cursor:pointer;color:#e2e8f0;flex-shrink:0">−</button>
+          <input id="om-price" type="number" step="0.01" min="0" oninput="omUpdateApprox()"
+                 style="flex:1;border:none;outline:none;text-align:center;font-size:1.1rem;font-weight:700;color:#f0f0f0;background:transparent;min-width:0" />
+          <button onclick="omAdjustPrice(1)"
+                  style="padding:12px 14px;border:none;background:transparent;font-size:1.2rem;cursor:pointer;color:#e2e8f0;flex-shrink:0">＋</button>
+        </div>
+      </div>
+      <div id="om-approx" style="text-align:right;font-size:0.75rem;color:#4b5563;padding:3px 2px 10px">　</div>
+
+      <!-- 市場類型 + 股數輸入 -->
+      <div style="display:flex;align-items:center;gap:8px;padding-bottom:4px">
+        <div id="om-mkttype"
+             style="background:#1e3a5f;border:1px solid #2d5a8e;border-radius:10px;padding:12px 0;font-size:0.9rem;font-weight:500;cursor:pointer;width:108px;text-align:center;flex-shrink:0;color:#e2e8f0">盤中零股</div>
+        <div style="display:flex;align-items:center;flex:1;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:10px;overflow:hidden;min-width:0">
+          <button onclick="adjustNum('om-qty',-1,0)"
+                  style="padding:12px 14px;border:none;background:transparent;font-size:1.2rem;cursor:pointer;color:#e2e8f0;flex-shrink:0">−</button>
+          <input id="om-qty" type="number" value="1" min="1" step="1"
+                 style="flex:1;border:none;outline:none;text-align:center;font-size:1.1rem;font-weight:700;color:#f0f0f0;background:transparent;min-width:0" />
+          <button onclick="adjustNum('om-qty',1,0)"
+                  style="padding:12px 14px;border:none;background:transparent;font-size:1.2rem;cursor:pointer;color:#e2e8f0;flex-shrink:0">＋</button>
+        </div>
+      </div>
+      <div style="text-align:right;font-size:0.75rem;color:#4b5563;padding:3px 2px 14px">單位：1股</div>
+    </div>
+
+    <!-- 買進 / 賣出 -->
+    <div style="display:flex;height:62px">
+      <button onclick="submitOrder('buy')"
+              style="flex:1;background:#ef4444;color:white;font-size:1.3rem;font-weight:700;border:none;cursor:pointer">買進</button>
+      <button onclick="submitOrder('sell')"
+              style="flex:1;background:#22c55e;color:white;font-size:1.3rem;font-weight:700;border:none;cursor:pointer">賣出</button>
+    </div>
+
+    <!-- 下單確認 overlay -->
+    <div id="om-confirm" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.7);border-radius:16px 16px 0 0;align-items:center;justify-content:center">
+      <div style="background:#1a1a1a;border:1px solid #3a3a3a;border-radius:14px;padding:24px 20px;width:80%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.6)">
+        <div style="font-size:0.8rem;color:#4b5563;text-align:center;margin-bottom:10px">S9 下單確認</div>
+        <div id="om-confirm-body" style="font-size:1rem;color:#f0f0f0;text-align:center;line-height:1.8;margin-bottom:20px"></div>
+        <div style="display:flex;gap:10px">
+          <button onclick="omConfirmCancel()"
+                  style="flex:1;padding:12px;border:1px solid #3a3a3a;border-radius:8px;background:#2a2a2a;color:#e2e8f0;font-size:1rem;font-weight:600;cursor:pointer">取消</button>
+          <button id="om-confirm-ok" onclick="omConfirmSubmit()"
+                  style="flex:1;padding:12px;border:none;border-radius:8px;color:white;font-size:1rem;font-weight:700;cursor:pointer">確認</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <script>
   let refreshTimer = null;
   const STORAGE_KEY = 'watchlist_symbols';
+
+  let _omStockData = null;
+  let _bookPollTimer = null;
+  let _bookSymbol = null;
+
+  function startBookPolling(symbol) {
+    stopBookPolling();
+    _bookSymbol = symbol;
+    pollOrderBook();
+    _bookPollTimer = setInterval(pollOrderBook, 2000);
+  }
+
+  function stopBookPolling() {
+    if (_bookPollTimer) { clearInterval(_bookPollTimer); _bookPollTimer = null; }
+    _bookSymbol = null;
+  }
+
+  async function pollOrderBook() {
+    if (!_bookSymbol) return;
+    try {
+      const r = await fetch(`/api/orderbook?symbol=${encodeURIComponent(_bookSymbol)}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      if (!d.error) omRenderBook(d.bids || [], d.asks || []);
+    } catch (e) {}
+  }
+
+  async function oddTrade(rowIdx) {
+    const sym = document.getElementById(`r${rowIdx}-symbol`)?.value.trim();
+    if (!sym) return;
+    document.getElementById('om-symbol').value = sym;
+    document.getElementById('om-name').textContent = document.getElementById(`r${rowIdx}-name`)?.textContent || sym;
+    document.getElementById('om-qty').value = 1;
+    document.getElementById('om-book').innerHTML = '<div style="text-align:center;color:#9ca3af;padding:8px 0">載入中…</div>';
+    document.getElementById('om-trades').innerHTML = '';
+    document.getElementById('order-modal').classList.remove('hidden');
+    startBookPolling(sym);
+    try {
+      const r = await fetch(`/api/market?symbols=${encodeURIComponent(sym)}`);
+      if (r.ok) { const d = await r.json(); const q = d.stocks?.[0]; if (q && !q.error) omPopulate(q); }
+    } catch (e) {}
+  }
+
+  function omPopulate(q) {
+    _omStockData = q;
+    document.getElementById('om-name').textContent = q.name || q.symbol;
+    const od = q.odd;
+    const price  = od?.price  ?? q.price;
+    const change = od?.change ?? q.change;
+    const pct    = od?.change_pct ?? q.change_pct;
+    const color  = change > 0 ? '#ef4444' : change < 0 ? '#22c55e' : '#6b7280';
+    const sign   = change > 0 ? '▲' : change < 0 ? '▼' : '';
+    document.getElementById('om-hdr-price').textContent = price != null ? fmt(price, 2) : '---';
+    document.getElementById('om-hdr-price').style.color = color;
+    document.getElementById('om-hdr-change').style.color = color;
+    document.getElementById('om-hdr-change').textContent =
+      change != null ? `${sign}${Math.abs(change).toFixed(2)} (${Math.abs(pct ?? 0).toFixed(2)}%)` : '---';
+    if (price != null) { document.getElementById('om-price').value = Number(price).toFixed(2); omUpdateApprox(); }
+    omRenderTrades(q);
+  }
+
+  function omTickSize(p) {
+    if (p < 10)   return 0.01;
+    if (p < 50)   return 0.05;
+    if (p < 100)  return 0.1;
+    if (p < 500)  return 0.5;
+    if (p < 1000) return 1;
+    return 5;
+  }
+
+  function omAdjustPrice(dir) {
+    const el  = document.getElementById('om-price');
+    const cur = parseFloat(el.value) || 0;
+    const step = omTickSize(cur);
+    const dec  = step < 1 ? String(step).split('.')[1]?.length ?? 0 : 0;
+    el.value = Math.max(0, cur + dir * step).toFixed(dec);
+    omUpdateApprox();
+  }
+
+  function omUpdateApprox() {
+    const p = parseFloat(document.getElementById('om-price').value);
+    document.getElementById('om-approx').textContent = isNaN(p) ? '　' : `約${Math.floor(p)}元`;
+  }
+
+
+  function omRenderBook(bids, asks) {
+    const el = document.getElementById('om-book');
+    const hasAny = bids.some(b => b.price != null) || asks.some(a => a.price != null);
+    if (!hasAny) {
+      el.innerHTML = '<div style="text-align:center;color:#4b5563;padding:6px 0">委託資料接收中…</div>';
+      return;
+    }
+
+    const maxVol = Math.max(1, ...[...bids, ...asks].map(x => x.volume || 0));
+
+    const HDR = `<div style="display:grid;grid-template-columns:4.5em 4.5em 0.8em 4.5em 4.5em;gap:0 6px;padding:0 0 4px;border-bottom:1px solid #2a2a2a;margin-bottom:3px">
+      <span style="text-align:right;color:#6b7280;font-size:0.7rem">委買量</span>
+      <span style="text-align:right;color:#6b7280;font-size:0.7rem">委買價</span>
+      <span></span>
+      <span style="color:#6b7280;font-size:0.7rem">委賣價</span>
+      <span style="color:#6b7280;font-size:0.7rem">委賣量</span>
+    </div>`;
+
+    let rows = '';
+    for (let i = 0; i < 5; i++) {
+      const b = bids[i] || {};
+      const a = asks[i] || {};
+      const bVol  = b.volume != null ? Number(b.volume).toLocaleString('zh-TW') : '---';
+      const aVol  = a.volume != null ? Number(a.volume).toLocaleString('zh-TW') : '---';
+      const bPric = b.price  != null ? fmt(b.price, 2) : '---';
+      const aPric = a.price  != null ? fmt(a.price, 2) : '---';
+      const bW    = b.volume ? Math.round(b.volume / maxVol * 100) : 0;
+      const aW    = a.volume ? Math.round(a.volume / maxVol * 100) : 0;
+      rows += `<div style="display:grid;grid-template-columns:4.5em 4.5em 0.8em 4.5em 4.5em;align-items:center;gap:0 6px;padding:2px 0;position:relative">
+        <div style="text-align:right;position:relative">
+          <div style="position:absolute;right:0;top:0;bottom:0;width:${bW}%;background:rgba(239,68,68,0.15);border-radius:2px"></div>
+          <span style="position:relative;color:#6b7280;font-size:0.78rem">${bVol}</span>
+        </div>
+        <span style="text-align:right;color:#ef4444;font-weight:${i===0?'600':'400'};font-size:0.85rem">${bPric}</span>
+        <span style="text-align:center;color:#4b5563;font-size:0.7rem">${i===0?'↑':''}</span>
+        <span style="color:#22c55e;font-weight:${i===0?'600':'400'};font-size:0.85rem">${aPric}</span>
+        <div style="position:relative">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:${aW}%;background:rgba(34,197,94,0.15);border-radius:2px"></div>
+          <span style="position:relative;color:#6b7280;font-size:0.78rem">${aVol}</span>
+        </div>
+      </div>`;
+    }
+    el.innerHTML = HDR + rows;
+  }
+
+  function omRenderTrades(q) {
+    const el = document.getElementById('om-trades');
+    const od = q.odd;
+    const p = od?.price ?? q.price;
+    if (p == null) { el.innerHTML = ''; return; }
+    const now = new Date();
+    const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const vol = od?.volume ?? q.volume ?? 0;
+    const row = (t, v) => `<div style="display:grid;grid-template-columns:5em 4em 4em 4em auto;gap:2px;padding:1px 0;color:#374151">
+      <span style="color:#9ca3af">${t}</span>
+      <span style="text-align:right;color:#ef4444">${fmt(p,2)}</span>
+      <span style="text-align:right;color:#ef4444">${fmt(p,2)}</span>
+      <span style="text-align:right;color:#ef4444">${fmt(p,2)}</span>
+      <span style="text-align:right;color:#ef4444">${Number(v).toLocaleString('zh-TW')}</span>
+    </div>`;
+    el.innerHTML = row(ts, vol) + row(ts, Math.max(1, Math.floor(vol * 0.2)));
+  }
+
+  function adjustNum(inputId, delta, decimals) {
+    const el = document.getElementById(inputId);
+    const val = parseFloat(el.value) || 0;
+    el.value = Math.max(0, val + delta).toFixed(decimals);
+  }
+
+  function closeOrderModal() {
+    stopBookPolling();
+    document.getElementById('order-modal').classList.add('hidden');
+  }
+
+  let _pendingOrder = null;
+
+  function submitOrder(bs) {
+    const sym   = document.getElementById('om-symbol').value.trim();
+    const qty   = document.getElementById('om-qty').value;
+    const price = document.getElementById('om-price').value;
+    const mkt   = document.getElementById('om-mkttype').textContent;
+    if (!sym || !price) return;
+    _pendingOrder = { bs, sym, qty, price, mkt };
+    const label = bs === 'buy' ? '買進' : '賣出';
+    const color = bs === 'buy' ? '#ef4444' : '#22c55e';
+    document.getElementById('om-confirm-body').innerHTML =
+      `<span style="font-weight:700;color:${color}">${label}</span>　${sym}<br>` +
+      `${price} 元　×　${qty} 股<br>` +
+      `<span style="font-size:0.85rem;color:#9ca3af">${mkt}</span>`;
+    document.getElementById('om-confirm-ok').style.background = color;
+    const overlay = document.getElementById('om-confirm');
+    overlay.style.display = 'flex';
+  }
+
+  function omConfirmCancel() {
+    document.getElementById('om-confirm').style.display = 'none';
+    _pendingOrder = null;
+  }
+
+  function omConfirmSubmit() {
+    document.getElementById('om-confirm').style.display = 'none';
+    // TODO: call /api/order with _pendingOrder
+    closeOrderModal();
+    _pendingOrder = null;
+  }
 
   function saveSymbols() {
     const syms = [...document.querySelectorAll('.sym-input')].map(el => el.value.trim());
@@ -215,7 +507,7 @@
     // Clear rows whose symbol was deleted
     allRows.filter(r => !r.sym).forEach(r => {
       const p = `r${r.idx}`;
-      ['name','price','change','vol','open','bid','ask','odd-price','odd-change','odd-vol'].forEach(f => {
+      ['name','price','change','vol','open','odd-price','odd-change','odd-vol'].forEach(f => {
         const el = document.getElementById(`${p}-${f}`);
         if (el) { el.textContent = '---'; el.className = 'num text-slate-600'; el.innerHTML = '---'; }
       });
@@ -224,7 +516,7 @@
     (data.stocks || []).forEach((q, i) => {
       const p = `r${activeRows[i].idx}`;
       if (!q || q.error) {
-        ['name','price','change','vol','open','bid','ask','odd-price','odd-change','odd-vol'].forEach(f => {
+        ['name','price','change','vol','open','odd-price','odd-change','odd-vol'].forEach(f => {
           const el = document.getElementById(`${p}-${f}`);
           if (el) { el.textContent = q?.error ? '查無資料' : '---'; el.className = 'num neu'; }
         });
@@ -235,8 +527,6 @@
       setChangeCell(`${p}-change`, q.change, q.change_pct);
       setCell(`${p}-vol`,  q.volume != null ? Number(q.volume).toLocaleString('zh-TW') : '---');
       setCell(`${p}-open`, fmt(q.open, 2));
-      setCell(`${p}-bid`,  fmt(q.bid, 2));
-      setCell(`${p}-ask`,  fmt(q.ask, 2));
       const od = q.odd;
       if (od) {
         setCell(`${p}-odd-price`, fmt(od.price, 2), changeClass(od.change));

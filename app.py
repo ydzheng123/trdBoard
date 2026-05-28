@@ -1,4 +1,6 @@
 import os
+import time
+import threading
 import requests as http_requests
 from flask import Flask, session, jsonify, request, render_template
 from fubon_neo.sdk import FubonSDK
@@ -25,6 +27,15 @@ def load_env(path=".env"):
 
 load_env()
 
+
+# ── Market data helpers ────────────────────────────────────────────────────────
+
+def _init_realtime():
+    try:
+        _sdk.init_realtime()
+        print("[marketdata] REST client ready")
+    except Exception as e:
+        print(f"[marketdata] init failed: {e}")
 
 def get_taiex():
     try:
@@ -119,6 +130,8 @@ def get_stock_quote(symbol: str):
         return {"error": str(e)}
 
 
+# ── Routes ─────────────────────────────────────────────────────────────────────
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -143,6 +156,8 @@ def login():
         session["logged_in"] = True
         session["account_name"] = _account.name
         session["account_no"] = _account.account
+        # Connect market data WebSocket in background
+        threading.Thread(target=_init_realtime, daemon=True).start()
         return jsonify({
             "ok": True,
             "name": _account.name,
@@ -189,9 +204,30 @@ def market():
     })
 
 
+@app.route("/api/orderbook")
+def orderbook():
+    if not session.get("logged_in") or _account is None:
+        return jsonify({"error": "not logged in"}), 401
+    symbol = request.args.get("symbol", "").strip().upper()
+    if not symbol:
+        return jsonify({"error": "no symbol"}), 400
+    if not hasattr(_sdk, "marketdata"):
+        return jsonify({"error": "market data not ready", "bids": [], "asks": []})
+    try:
+        data = _sdk.marketdata.rest_client.stock.intraday.quote(symbol=symbol, type='oddlot')
+        bids = [{"price": b.get("price"), "volume": b.get("size")}
+                for b in data.get("bids", [])[:5]]
+        asks = [{"price": a.get("price"), "volume": a.get("size")}
+                for a in data.get("asks", [])[:5]]
+        return jsonify({"bids": bids, "asks": asks})
+    except Exception as e:
+        print(f"[orderbook] error: {e}")
+        return jsonify({"error": str(e), "bids": [], "asks": []})
+
+
 if __name__ == "__main__":
     if not os.environ.get("WERKZEUG_RUN_MAIN"):
-        import threading, webbrowser, socket, time
+        import webbrowser, socket
         def _open_browser():
             for _ in range(30):
                 try:
