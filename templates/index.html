@@ -171,9 +171,14 @@
       <span style="font-size:0.7rem;color:#4b5563;flex-shrink:0">S3 下單面板</span>
       <input id="om-symbol" maxlength="6"
              style="flex:1;border:none;border-bottom:2px solid #4b5563;background:transparent;font-size:1.05rem;font-family:monospace;padding:4px 6px;outline:none;text-transform:uppercase;color:#f0f0f0;min-width:0" />
+      <button onclick="showOrders()"
+              style="border:none;background:#1e3a5f;color:#93c5fd;border-radius:8px;padding:0 12px;height:34px;font-size:0.85rem;font-weight:600;cursor:pointer;flex-shrink:0">委託</button>
       <button onclick="closeOrderModal()"
               style="border:none;background:#2a2a2a;color:#9ca3af;border-radius:8px;width:34px;height:34px;font-size:1.1rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
+
+    <!-- 委託成功提示 -->
+    <div id="om-success-bar" style="display:none;background:#14532d;color:#86efac;font-size:0.82rem;padding:6px 14px;text-align:center"></div>
 
     <!-- 名稱 + 現價 -->
     <div style="background:#111111;padding:10px 14px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a2a">
@@ -234,6 +239,24 @@
               style="flex:1;background:#ef4444;color:white;font-size:1.3rem;font-weight:700;border:none;cursor:pointer">買進</button>
       <button onclick="submitOrder('sell')"
               style="flex:1;background:#22c55e;color:white;font-size:1.3rem;font-weight:700;border:none;cursor:pointer">賣出</button>
+    </div>
+
+    <!-- S5 委託紀錄 overlay -->
+    <div id="om-orders" style="display:none;position:absolute;inset:0;background:#0a0a0a;border-radius:16px 16px 0 0;flex-direction:column;overflow:hidden">
+      <div style="background:#111111;padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #2a2a2a;flex-shrink:0">
+        <span style="font-size:0.7rem;color:#4b5563;flex-shrink:0">S5</span>
+        <span class="dot dot-live"></span>
+        <span style="font-size:0.9rem;font-weight:600;color:#e2e8f0;flex:1">今日委託紀錄</span>
+        <button onclick="closeOrders()"
+                style="border:none;background:#2a2a2a;color:#9ca3af;border-radius:8px;width:34px;height:34px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      <!-- 欄位標題 -->
+      <div style="background:#0f172a;display:grid;grid-template-columns:1fr 5em 6em;gap:0 8px;padding:5px 14px;font-size:0.7rem;color:#64748b;font-weight:600;letter-spacing:0.04em;flex-shrink:0">
+        <span>名稱</span>
+        <span style="text-align:right">委價/成均</span>
+        <span style="text-align:right">數量</span>
+      </div>
+      <div id="om-orders-list" style="flex:1;overflow-y:auto;font-size:0.83rem;font-variant-numeric:tabular-nums"></div>
     </div>
 
     <!-- 下單確認 overlay -->
@@ -446,11 +469,95 @@
     _pendingOrder = null;
   }
 
-  function omConfirmSubmit() {
-    document.getElementById('om-confirm').style.display = 'none';
-    // TODO: call /api/order with _pendingOrder
-    closeOrderModal();
-    _pendingOrder = null;
+  async function omConfirmSubmit() {
+    const o = _pendingOrder;
+    if (!o) return;
+    const okBtn = document.getElementById('om-confirm-ok');
+    okBtn.disabled = true;
+    okBtn.textContent = '送出中…';
+    try {
+      const r = await fetch('/api/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bs: o.bs, symbol: o.sym, price: o.price, qty: o.qty }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        document.getElementById('om-confirm').style.display = 'none';
+        _pendingOrder = null;
+        const label = o.bs === 'buy' ? '買進' : '賣出';
+        omShowSuccess(`已委託 ${label} ${o.sym} × ${o.qty} 股 @ ${o.price} 元`);
+      } else {
+        document.getElementById('om-confirm-body').innerHTML =
+          `<span style="color:#f87171;font-size:0.9rem">下單失敗<br>${d.message || '未知錯誤'}</span>`;
+        okBtn.textContent = '確認';
+        okBtn.disabled = false;
+        _pendingOrder = null;
+      }
+    } catch (e) {
+      document.getElementById('om-confirm-body').innerHTML =
+        `<span style="color:#f87171;font-size:0.9rem">網路錯誤，請重試</span>`;
+      okBtn.textContent = '確認';
+      okBtn.disabled = false;
+      _pendingOrder = null;
+    }
+  }
+
+  function omShowSuccess(msg) {
+    const bar = document.getElementById('om-success-bar');
+    bar.textContent = msg;
+    bar.style.display = 'block';
+    setTimeout(() => { bar.style.display = 'none'; }, 4000);
+  }
+
+  let _ordersPollTimer = null;
+
+  function showOrders() {
+    document.getElementById('om-orders').style.display = 'flex';
+    refreshOrders();
+    _ordersPollTimer = setInterval(refreshOrders, 5000);
+  }
+
+  function closeOrders() {
+    if (_ordersPollTimer) { clearInterval(_ordersPollTimer); _ordersPollTimer = null; }
+    document.getElementById('om-orders').style.display = 'none';
+  }
+
+  async function refreshOrders() {
+    const listEl = document.getElementById('om-orders-list');
+    try {
+      const r = await fetch('/api/orders');
+      const d = await r.json();
+      if (d.error) {
+        listEl.innerHTML = `<div style="color:#f87171;padding:12px">${d.error}</div>`;
+        return;
+      }
+      if (!d.orders.length) {
+        listEl.innerHTML = '<div style="text-align:center;color:#6b7280;padding:16px">今日無委託紀錄</div>';
+        return;
+      }
+      listEl.innerHTML = d.orders.map(o => {
+        const bsColor = o.bs === '買' ? '#f87171' : '#34d399';
+        const remaining = o.qty - o.filled_qty;
+        const avgStr = o.avg_price ? fmt(o.avg_price, 2) : '---';
+        return `<div style="border-bottom:1px solid #1a1a1a;padding:7px 14px;display:grid;grid-template-columns:1fr 5em 6em;gap:0 8px;align-items:center">
+          <div>
+            <span style="color:${bsColor};font-size:0.72rem;font-weight:700">盤中零股${o.bs}</span><br>
+            <span style="color:#e2e8f0;font-weight:600">${o.name || o.symbol}</span>
+          </div>
+          <div style="text-align:right">
+            <div style="color:#e2e8f0">${fmt(o.price, 2)}</div>
+            <div style="color:#94a3b8;font-size:0.78rem">${avgStr}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="color:#94a3b8">餘 ${remaining}</div>
+            <div style="color:${o.filled_qty > 0 ? '#34d399' : '#4b5563'}">成 ${o.filled_qty}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      listEl.innerHTML = '<div style="color:#f87171;padding:12px">載入失敗</div>';
+    }
   }
 
   function saveSymbols() {

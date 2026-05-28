@@ -3,8 +3,8 @@ import time
 import threading
 import requests as http_requests
 from flask import Flask, session, jsonify, request, render_template
-from fubon_neo.sdk import FubonSDK
-from fubon_neo.constant import MarketType
+from fubon_neo.sdk import FubonSDK, Order
+from fubon_neo.constant import MarketType, BSAction, PriceType, TimeInForce, OrderType
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -223,6 +223,75 @@ def orderbook():
     except Exception as e:
         print(f"[orderbook] error: {e}")
         return jsonify({"error": str(e), "bids": [], "asks": []})
+
+
+@app.route("/api/orders")
+def get_orders():
+    if not session.get("logged_in") or _account is None:
+        return jsonify({"error": "尚未登入", "orders": []}), 401
+    try:
+        result = _sdk.stock.get_order_results(_account)
+        if not result.is_success:
+            return jsonify({"error": result.message, "orders": []})
+        orders = []
+        for o in (result.data or []):
+            bs_val       = getattr(o, 'buy_sell', None)
+            symbol       = getattr(o, 'stock_no', '') or getattr(o, 'symbol', '')
+            qty          = getattr(o, 'quantity', 0) or 0
+            filled       = getattr(o, 'filled_qty', 0) or 0
+            filled_money = getattr(o, 'filled_money', None)
+            avg_price    = (filled_money / filled) if filled and filled_money else None
+            if filled >= qty > 0:
+                status_text = '全部成交'
+            elif filled > 0:
+                status_text = '部分成交'
+            else:
+                status_text = '委託中'
+            orders.append({
+                "symbol":      symbol,
+                "name":        get_stock_name(symbol),
+                "bs":          '買' if bs_val == BSAction.Buy else '賣',
+                "price":       getattr(o, 'price', ''),
+                "qty":         qty,
+                "filled_qty":  filled,
+                "avg_price":   round(avg_price, 2) if avg_price else None,
+                "status_text": status_text,
+            })
+        return jsonify({"orders": list(reversed(orders))})
+    except Exception as e:
+        print(f"[orders] error: {e}")
+        return jsonify({"error": str(e), "orders": []})
+
+
+@app.route("/api/order", methods=["POST"])
+def place_order():
+    if not session.get("logged_in") or _account is None:
+        return jsonify({"ok": False, "message": "尚未登入"}), 401
+    data = request.json or {}
+    bs      = data.get("bs", "").lower()
+    symbol  = data.get("symbol", "").strip().upper()
+    price   = data.get("price")
+    qty     = data.get("qty")
+    if bs not in ("buy", "sell") or not symbol or price is None or qty is None:
+        return jsonify({"ok": False, "message": "參數錯誤"}), 400
+    try:
+        order = Order(
+            buy_sell=BSAction.Buy if bs == "buy" else BSAction.Sell,
+            symbol=symbol,
+            price=str(float(price)),
+            quantity=int(qty),
+            market_type=MarketType.IntradayOdd,
+            price_type=PriceType.Limit,
+            time_in_force=TimeInForce.ROD,
+            order_type=OrderType.Stock,
+        )
+        result = _sdk.stock.place_order(_account, order)
+        if result.is_success:
+            return jsonify({"ok": True, "order_id": getattr(result.data, "order_id", None)})
+        return jsonify({"ok": False, "message": result.message})
+    except Exception as e:
+        print(f"[order] error: {e}")
+        return jsonify({"ok": False, "message": str(e)}), 500
 
 
 if __name__ == "__main__":
