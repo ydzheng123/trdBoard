@@ -289,7 +289,7 @@
     stopBookPolling();
     _bookSymbol = symbol;
     pollOrderBook();
-    _bookPollTimer = setInterval(pollOrderBook, 2000);
+    _bookPollTimer = setInterval(pollOrderBook, 5000);
   }
 
   function stopBookPolling() {
@@ -441,6 +441,7 @@
 
   function closeOrderModal() {
     stopBookPolling();
+    closeOrders();
     document.getElementById('order-modal').classList.add('hidden');
   }
 
@@ -513,6 +514,7 @@
   let _ordersPollTimer = null;
 
   function showOrders() {
+    if (_ordersPollTimer) { clearInterval(_ordersPollTimer); _ordersPollTimer = null; }
     document.getElementById('om-orders').style.display = 'flex';
     refreshOrders();
     _ordersPollTimer = setInterval(refreshOrders, 5000);

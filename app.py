@@ -235,12 +235,11 @@ def get_orders():
             return jsonify({"error": result.message, "orders": []})
         orders = []
         for o in (result.data or []):
-            bs_val       = getattr(o, 'buy_sell', None)
-            symbol       = getattr(o, 'stock_no', '') or getattr(o, 'symbol', '')
-            qty          = getattr(o, 'quantity', 0) or 0
-            filled       = getattr(o, 'filled_qty', 0) or 0
-            filled_money = getattr(o, 'filled_money', None)
-            avg_price    = (filled_money / filled) if filled and filled_money else None
+            bs_val    = getattr(o, 'buy_sell', None)
+            symbol    = getattr(o, 'stock_no', '') or getattr(o, 'symbol', '')
+            qty       = getattr(o, 'quantity', 0) or 0
+            filled    = getattr(o, 'filled_qty', 0) or 0
+            avg_price = getattr(o, 'after_price', None) if filled else None
             if filled >= qty > 0:
                 status_text = '全部成交'
             elif filled > 0:
