@@ -260,6 +260,7 @@
   let _omStockData = null;
   let _bookPollTimer = null;
   let _bookSymbol = null;
+  let _omBookPrices = [];
 
   function startBookPolling(symbol) {
     stopBookPolling();
@@ -317,21 +318,19 @@
     omRenderTrades(q);
   }
 
-  function omTickSize(p) {
-    if (p < 10)   return 0.01;
-    if (p < 50)   return 0.05;
-    if (p < 100)  return 0.1;
-    if (p < 500)  return 0.5;
-    if (p < 1000) return 1;
-    return 5;
-  }
-
   function omAdjustPrice(dir) {
+    if (_omBookPrices.length === 0) return;
     const el  = document.getElementById('om-price');
     const cur = parseFloat(el.value) || 0;
-    const step = omTickSize(cur);
-    const dec  = step < 1 ? String(step).split('.')[1]?.length ?? 0 : 0;
-    el.value = Math.max(0, cur + dir * step).toFixed(dec);
+    let next;
+    if (dir > 0) {
+      next = _omBookPrices.find(p => p > cur + 1e-9);
+      if (next == null) next = _omBookPrices[_omBookPrices.length - 1];
+    } else {
+      const below = _omBookPrices.filter(p => p < cur - 1e-9);
+      next = below.length > 0 ? below[below.length - 1] : _omBookPrices[0];
+    }
+    el.value = next.toFixed(2);
     omUpdateApprox();
   }
 
@@ -384,6 +383,13 @@
       </div>`;
     }
     el.innerHTML = HDR + rows;
+
+    // Update sorted price list for +/- navigation
+    const allPrices = [
+      ...bids.filter(b => b.price != null).map(b => b.price),
+      ...asks.filter(a => a.price != null).map(a => a.price),
+    ];
+    _omBookPrices = [...new Set(allPrices)].sort((a, b) => a - b);
   }
 
   function omRenderTrades(q) {
