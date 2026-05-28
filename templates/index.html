@@ -173,6 +173,8 @@
              style="flex:1;border:none;border-bottom:2px solid #4b5563;background:transparent;font-size:1.05rem;font-family:monospace;padding:4px 6px;outline:none;text-transform:uppercase;color:#f0f0f0;min-width:0" />
       <button onclick="showOrders()"
               style="border:none;background:#1e3a5f;color:#93c5fd;border-radius:8px;padding:0 12px;height:34px;font-size:0.85rem;font-weight:600;cursor:pointer;flex-shrink:0">委託</button>
+      <button onclick="showInventory()"
+              style="border:none;background:#1a3a2a;color:#6ee7b7;border-radius:8px;padding:0 12px;height:34px;font-size:0.85rem;font-weight:600;cursor:pointer;flex-shrink:0">庫存</button>
       <button onclick="closeOrderModal()"
               style="border:none;background:#2a2a2a;color:#9ca3af;border-radius:8px;width:34px;height:34px;font-size:1.1rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
@@ -257,6 +259,26 @@
         <span style="text-align:right">數量</span>
       </div>
       <div id="om-orders-list" style="flex:1;overflow-y:auto;font-size:0.83rem;font-variant-numeric:tabular-nums"></div>
+    </div>
+
+    <!-- S6 庫存明細 overlay -->
+    <div id="om-inventory" style="display:none;position:absolute;inset:0;background:#0a0a0a;border-radius:16px 16px 0 0;flex-direction:column;overflow:hidden">
+      <div style="background:#111111;padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #2a2a2a;flex-shrink:0">
+        <span style="font-size:0.7rem;color:#4b5563;flex-shrink:0">S6</span>
+        <span style="font-size:0.9rem;font-weight:600;color:#e2e8f0;flex:1">庫存明細</span>
+        <button onclick="closeInventory()"
+                style="border:none;background:#2a2a2a;color:#9ca3af;border-radius:8px;width:34px;height:34px;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      <!-- 欄位標題 -->
+      <div style="background:#0f172a;display:grid;grid-template-columns:1fr 5.5rem 6.5rem 4rem 2.5rem 4rem;gap:0 6px;padding:5px 14px;font-size:0.7rem;color:#64748b;font-weight:600;letter-spacing:0.04em;flex-shrink:0">
+        <span>名稱</span>
+        <span style="text-align:right">買入日期</span>
+        <span style="text-align:right">買入時間</span>
+        <span style="text-align:right">買入價格</span>
+        <span style="text-align:right">股數</span>
+        <span style="text-align:right">交割狀態</span>
+      </div>
+      <div id="om-inventory-list" style="flex:1;overflow-y:auto;font-size:0.83rem;font-variant-numeric:tabular-nums"></div>
     </div>
 
     <!-- 下單確認 overlay -->
@@ -512,6 +534,48 @@
   }
 
   let _ordersPollTimer = null;
+
+  function showInventory() {
+    const sym = document.getElementById('om-symbol').value.trim();
+    document.getElementById('om-inventory').style.display = 'flex';
+    refreshInventory(sym);
+  }
+
+  function closeInventory() {
+    document.getElementById('om-inventory').style.display = 'none';
+  }
+
+  async function refreshInventory(symbol) {
+    const listEl = document.getElementById('om-inventory-list');
+    listEl.innerHTML = '<div style="text-align:center;color:#6b7280;padding:16px">載入中…</div>';
+    try {
+      const r = await fetch(`/api/inventory?symbol=${encodeURIComponent(symbol || '')}`);
+      const d = await r.json();
+      if (d.error) {
+        listEl.innerHTML = `<div style="color:#f87171;padding:12px">${d.error}</div>`;
+        return;
+      }
+      if (!d.items.length) {
+        listEl.innerHTML = '<div style="text-align:center;color:#6b7280;padding:16px">無庫存紀錄</div>';
+        return;
+      }
+      listEl.innerHTML = d.items.map(it => {
+        const settleColor = it.settle_status === '已交割' ? '#6ee7b7'
+                          : it.settle_status === '未交割' ? '#fcd34d'
+                          : '#94a3b8';
+        return `<div style="border-bottom:1px solid #1a1a1a;padding:7px 14px;display:grid;grid-template-columns:1fr 5.5rem 6.5rem 4rem 2.5rem 4rem;gap:0 6px;align-items:center">
+          <div style="color:#e2e8f0;font-weight:600">${it.name || it.symbol}</div>
+          <div style="text-align:right;color:#94a3b8;font-size:0.78rem">${it.date || '---'}</div>
+          <div style="text-align:right;color:#94a3b8;font-size:0.78rem">${it.time || '---'}</div>
+          <div style="text-align:right;color:#ef4444">${it.buy_price ? fmt(it.buy_price, 2) : '---'}</div>
+          <div style="text-align:right;color:#e2e8f0">${it.qty}</div>
+          <div style="text-align:right;color:${settleColor};font-size:0.78rem">${it.settle_status}</div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      listEl.innerHTML = '<div style="color:#f87171;padding:12px">載入失敗</div>';
+    }
+  }
 
   function showOrders() {
     if (_ordersPollTimer) { clearInterval(_ordersPollTimer); _ordersPollTimer = null; }

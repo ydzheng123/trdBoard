@@ -293,6 +293,97 @@ def place_order():
         return jsonify({"ok": False, "message": str(e)}), 500
 
 
+@app.route("/api/inventory")
+def get_inventory():
+    if not session.get("logged_in") or _account is None:
+        return jsonify({"error": "尚未登入", "items": []}), 401
+    symbol = request.args.get("symbol", "").strip().upper()
+    try:
+        import datetime
+        today     = datetime.date.today()
+        today_str = today.strftime("%Y/%m/%d")
+        start     = datetime.date(today.year, 1, 1).strftime("%Y/%m/%d")
+
+        def settle_status(date_str):
+            try:
+                td = datetime.date.fromisoformat(date_str.replace('/', '-'))
+                weekdays = sum(
+                    1 for i in range(1, (today - td).days + 1)
+                    if (td + datetime.timedelta(days=i)).weekday() < 5
+                )
+                return '已交割' if weekdays >= 2 else '未交割'
+            except Exception:
+                return '未知'
+
+        items = []
+
+        # 1. filled_history（今年起，含今日）——有 filled_time
+        r_hist = _sdk.stock.filled_history(_account, start)
+        hist_keys = set()  # (date, price, qty) 用於去重
+        if r_hist.is_success:
+            for f in (r_hist.data or []):
+                if getattr(f, 'buy_sell', None) != BSAction.Buy:
+                    continue
+                stk = getattr(f, 'stock_no', '') or getattr(f, 'symbol', '')
+                if symbol and stk != symbol:
+                    continue
+                date_str = str(getattr(f, 'date', '') or '')
+                price    = getattr(f, 'filled_price', None) or getattr(f, 'filled_avg_price', None) or 0
+                qty      = getattr(f, 'filled_qty', 0) or 0
+                key      = (date_str, round(float(price), 2) if price else 0, int(qty))
+                hist_keys.add(key)
+                items.append({
+                    "symbol":        stk,
+                    "name":          get_stock_name(stk),
+                    "date":          date_str,
+                    "time":          str(getattr(f, 'filled_time', '') or '')[:8],
+                    "buy_price":     key[1],
+                    "qty":           key[2],
+                    "settle_status": settle_status(date_str),
+                })
+
+        # 2. 今日成交（get_order_results_detail）——補 filled_history 尚未收錄的今日筆數
+        r_today = _sdk.stock.get_order_results_detail(_account)
+        if r_today.is_success:
+            for o in (r_today.data or []):
+                if getattr(o, 'buy_sell', None) != BSAction.Buy:
+                    continue
+                stk = getattr(o, 'stock_no', '') or getattr(o, 'symbol', '')
+                if symbol and stk != symbol:
+                    continue
+                filled = getattr(o, 'filled_qty', 0) or 0
+                if filled <= 0:
+                    continue
+                price = getattr(o, 'after_price', None) or getattr(o, 'price', None) or 0
+                key   = (today_str, round(float(price), 2) if price else 0, int(filled))
+                if key in hist_keys:
+                    continue  # filled_history 已有，跳過
+                # 從 details 找 function_type==50 的成交紀錄取得成交時間
+                t_str = ''
+                for det in reversed(getattr(o, 'details', []) or []):
+                    if getattr(det, 'function_type', None) == 50:
+                        t_str = str(getattr(det, 'modified_time', '') or '')[:12]
+                        break
+                items.append({
+                    "symbol":        stk,
+                    "name":          get_stock_name(stk),
+                    "date":          today_str,
+                    "time":          t_str,
+                    "buy_price":     key[1],
+                    "qty":           key[2],
+                    "settle_status": settle_status(today_str),
+                })
+
+        # 今日在前，其餘依日期倒序
+        today_items = [x for x in items if x['date'] == today_str]
+        past_items  = sorted([x for x in items if x['date'] != today_str],
+                             key=lambda x: x['date'], reverse=True)
+        return jsonify({"items": today_items + past_items})
+    except Exception as e:
+        print(f"[inventory] error: {e}")
+        return jsonify({"error": str(e), "items": []})
+
+
 if __name__ == "__main__":
     if not os.environ.get("WERKZEUG_RUN_MAIN"):
         import webbrowser, socket
